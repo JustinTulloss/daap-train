@@ -50,11 +50,11 @@ class Daapd:
         function = req.path_info.strip('/')
         if hasattr(self, function):
             try:
-                resp = getattr(self, function)(req) or ''
+                resp = getattr(self, function)(req)
             except exc.HttpException, e:
                 resp = e
 
-            if isinstance(resp, basestring):
+            if not isinstance(resp, Response):
                 resp = Response(body=resp)
             return resp(environ, start_response)
 
