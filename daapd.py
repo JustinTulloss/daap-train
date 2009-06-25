@@ -48,7 +48,7 @@ class Daapd:
     def __call__(self, environ, start_response):
         req = Request(environ)
         function = req.path_info.strip('/')
-        if hasattr(self, function):
+        if hasattr(self, function) and not function.startswith('_'):
             try:
                 resp = getattr(self, function)(req)
             except exc.HttpException, e:
