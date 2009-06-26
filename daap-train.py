@@ -25,5 +25,8 @@ This is the main server for daap-train, a daap server library in python.
 from daapd import Daapd
 from paste import httpserver
 
+PORT = 3689 # TODO: Make this configurable/dynamic
+
 if __name__ == '__main__':
-    httpserver.serve(Daapd(), host="0.0.0.0", port=3689)
+    server = Daapd(port=PORT)
+    httpserver.serve(server, host="0.0.0.0", port=PORT)

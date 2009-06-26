@@ -18,18 +18,48 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""
-This is the interface that represents the server side of the daap protocol.
-"""
-
 from webob import Request, Response, exc
+from threading import Thread
+
+try:
+    from pybonjour import (
+        DNSServiceRegister,
+        DNSServiceProcessResult,
+        kDNSServiceErr_NoError
+    )
+    bonjour = True
+except ImportError:
+    bonjour = False
 
 class Daapd:
     """
-    Abstract interface representing DAAP interactions. Something that can
-    actually provide legitimate data should derive from this and implement
-    the functions appropriately.
+    This is the main class for the DAAP daemon. An instance is a WSGI app, so you
+    should be able to plug it into any WSGI compatible server and start
+    serving up music, just like that.
+
+    This also provides mDNS integration, so without any effort on the user's
+    part, the server will broadcast its presence to the world (some
+    configuration required).
+
+    This class does not actually serve any music metadata. To do that, you should
+    derive from this class and translate whatever metadata API you have into
+    the API provided by this class.
+
+    Refer to http://tapjam.net/daap/ for the DAAP specification.
     """
+
+    def __init__(self, port=3689, autodiscover=True, name="DAAP-Train"):
+        """
+        If autodiscover is True, informs the local network that there is a
+        daap server located on <port>.
+        """
+        if autodiscover and bonjour:
+            self.sdRef = DNSServiceRegister(
+                name = name, 
+                regtype = '_daap._tcp.', 
+                port = port,
+                callBack = self._registered_callback)
+
     def server_info(self, request):
         pass
 
@@ -61,3 +91,25 @@ class Daapd:
             return resp(environ, start_response)
 
         return exc.HTTPNotFound()(environ, start_response)
+
+    # Helper and private functions. I wouldn't override these unless you
+    # know what you're doing.
+
+    def _registered_callback(sdRef, flags, errorCode, name, regtype, domain):
+        if errorCode == kDNSServiceErr_NoError:
+            self.sdRef = sdRef
+            self._pb_thread = Thread(
+                None, 
+                self._pb_discovery, 
+                "Bonjour Discovery Thread")
+            self._pb_thread.daemon = True
+            self._pb_thread.start()
+
+    def _pb_discovery():
+        try:
+            while True:
+                ready = select.select([self.sdRef], [], [])
+                if self.sdRef in ready[0]:
+                    DNSServiceProcessResult(self.sdRef)
+        finally:
+            self.sdRef.close()
