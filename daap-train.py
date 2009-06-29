@@ -29,9 +29,4 @@ PORT = 3689 # TODO: Make this configurable/dynamic
 
 if __name__ == '__main__':
     server = Daapd(port=PORT)
-    def run():
-        httpserver.serve(server, host="0.0.0.0", port=PORT)
-    import threading, time
-    threading.Thread(None, run).start()
-    time.sleep(1)
-    server.discover()
+    httpserver.serve(server, host="0.0.0.0", port=PORT)

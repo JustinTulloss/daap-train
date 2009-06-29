@@ -20,6 +20,8 @@
 
 import struct
 
+HEADER_LENGTH = 8
+
 class DaapType(object):
     def __init__(self, code, value):
         self.code = code
@@ -99,7 +101,8 @@ class DaapList(DaapType, list):
     def __len__(self):
         size = 0
         for item in self:
-            size += 4 + item.size
+            size += HEADER_LENGTH + item.size
+        return size + HEADER_LENGTH
 
     def __str__(self):
         buffer = ''

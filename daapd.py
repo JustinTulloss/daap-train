@@ -19,10 +19,9 @@
 # THE SOFTWARE.
 
 from webob import Request, Response, exc
-from threading import Thread
 from daap_types import *
-import struct
 import select
+from decorator import decorator
 
 __all__ = ['Daapd', 'DaapServerInfo']
 
@@ -37,6 +36,26 @@ try:
 except ImportError:
     bonjour = False
 
+routing_table = {}
+
+def serve(url):
+    """
+    Adds the decorated function to the routing table. Works with regular
+    expressions that get turned into arguments.
+
+    Example
+    =======
+    @serve('/blog/([0-9])*/([a-zA-Z_-]*)
+    def blog(date, title):
+        pass
+
+    That function will get the first match as date and the second as title.
+    """
+    def serving_url(f):
+        routing_table[url] = f
+        return f
+    return serving_url
+
 class Daapd:
     """
     This is the main class for the DAAP daemon. An instance is a WSGI app, so you
@@ -45,7 +64,7 @@ class Daapd:
 
     This also provides mDNS integration, so without any effort on the user's
     part, the server will broadcast its presence to the world (some
-    configuration required).
+    configuration allowed).
 
     This class does not actually serve any music metadata. To do that, you should
     derive from this class and translate whatever metadata API you have into
@@ -64,6 +83,11 @@ class Daapd:
         self.name = name
         self.autodiscover = autodiscover
         self.port = port
+        self.discover()
+
+    def __delete__(self):
+        if self.sdRef:
+            self.sdRef.close()
 
     def discover(self):
         if self.autodiscover and bonjour:
@@ -77,17 +101,16 @@ class Daapd:
                 name = self.name,
                 regtype = '_daap._tcp.',
                 port = self.port,
-                callBack = self._registered_callback,
                 txtRecord = txt_record)
 
-            self._pb_thread = Thread(
-                None,
-                self._pb_discovery,
-                "Bonjour Discovery Thread")
-            self._pb_thread.daemon = True
-            self._pb_thread.start()
+            while True:
+                ready = select.select([self.sdRef], [], [])
+                if self.sdRef in ready[0]:
+                    DNSServiceProcessResult(self.sdRef)
+                    break
 
-    def server_info(self, request):
+    @serve('server-info')
+    def server_info(self):
         """
         Request: daap://server/server-info (or http://server:3689/)
         Response: msrv
@@ -111,53 +134,41 @@ class Daapd:
               mpro - dmap protocol version
         """
         print "Getting server info"
-        return DaapServerInfo(name=self.name, login=False)
+        return DaapServerInfo(name=self.name)
 
+    @serve('content-codes')
     def content_codes(self, request):
         pass
 
+    @serve('login')
     def login(self, request):
         pass
 
+    @serve('update')
     def update(self, request):
         pass
 
+    @serve('databases')
     def databases(self, request):
         pass
 
     def __call__(self, environ, start_response):
+        from pprint import pprint
         req = Request(environ)
-        function = req.path_info.strip('/').replace('-', '_')
-        if hasattr(self, function) and \
-                not function.startswith('_') and \
-                callable(getattr(self, function)):
-            try:
-                resp = getattr(self, function)(req)
-            except exc.HTTPException, e:
-                resp = e
+        path_info = req.path_info
+        pprint(path_info)
+        for url, function in routing_table.iteritems():
+            if url in path_info:
+                try:
+                    resp = function(self)
+                except exc.HTTPException, e:
+                    resp = e
 
-            if not isinstance(resp, Response):
-                resp = Response(body=resp)
-            return resp(environ, start_response)
+                if not isinstance(resp, Response):
+                    resp = Response(body=resp)
+                return resp(environ, start_response)
 
         return exc.HTTPNotFound()(environ, start_response)
-
-    # Helper and private functions. I wouldn't override these unless you
-    # know what you're doing.
-
-    def _registered_callback(self, sdRef, flags, errorCode, name, regtype, domain):
-        print "Maybe should do something?"
-        pass
-
-    def _pb_discovery(self):
-        try:
-            while True:
-                print "blocking"
-                DNSServiceProcessResult(self.sdRef)
-                print "oh boy!"
-        finally:
-            self.sdRef.close()
-
 
 def code_to_integer(code):
     number = 0
@@ -191,14 +202,15 @@ codes = {
     'resolve': code_to_integer('msrs'),
     'browsing': code_to_integer('msbr'),
     'persistent_ids': code_to_integer('mspi'),
-    'dmap_protocol': code_to_integer('mpro')
+    'dmap_protocol': code_to_integer('mpro'),
+    'database_count': code_to_integer('msdc')
 }
 
 class DaapResponse(Response):
     def __init__(self, *args, **kwargs):
         super(DaapResponse, self).__init__(*args, **kwargs)
         #self.headers['Content-Type'] = 'application/x-dmap-tagged'
-        self.headers['DAAP-Server'] = 'Simple'
+        self.headers['DAAP-Server'] = 'DAAP Train'
         self.headers['Expires'] = -1
         self.headers['Cache-Control'] = 'no-cache'
         self.headers['Accept-Ranges'] = 'bytes'
@@ -246,9 +258,10 @@ class DaapServerInfo(DaapResponse):
         super(DaapServerInfo, self).__init__()
         self.data = DaapList(codes['server-info'])
         self.data.append(DaapInt(codes['status'], status))
-        self.data.append(DaapVersion(codes['protocol'], version))
         self.data.append(DaapString(codes['name'], name))
+        self.data.append(DaapVersion(codes['protocol'], version))
         self.data.append(DaapVersion(codes['dmap_protocol'], dmap_protocol))
+        self.data.append(DaapInt(codes['database_count'], 1))
         self.data.append(DaapInt(codes['timeout'], timeout))
 
         # Options
@@ -261,4 +274,5 @@ class DaapServerInfo(DaapResponse):
         self.data.append(DaapBool(codes['resolve'], resolve))
         self.data.append(DaapBool(codes['browsing'], browsing))
         self.data.append(DaapBool(codes['persistent_ids'], persistent_ids))
+
         self.body = str(self.data)
