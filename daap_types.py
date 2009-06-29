@@ -35,54 +35,54 @@ class DaapType(object):
         return len(self.data)
 
 class DaapBool(DaapType):
-    format = "iiB"
+    format = "!iiB"
     size = 1
 
 class DaapByte(DaapType):
-    format = "iib"
+    format = "!iib"
     size = 1
 
 class DaapUByte(DaapType):
-    format = "iiB"
+    format = "!iiB"
     size = 1
 
 class DaapShort(DaapType):
-    format = "iih"
+    format = "!iih"
     size = 2
 
 class DaapUShort(DaapType):
-    format = "iiH"
+    format = "!iiH"
     size = 2
 
 class DaapInt(DaapType):
-    format = "iii"
+    format = "!iii"
     size = 4
 
 class DaapUInt(DaapType):
-    format = "iiI"
+    format = "!iiI"
     size = 4
 
 class DaapLong(DaapType):
-    format = "iiq"
+    format = "!iiq"
     size = 8
 
 class DaapULong(DaapType):
-    format = "iiQ"
+    format = "!iiQ"
     size = 8
 
 class DaapString(DaapType):
-    format = "ii%ds"
+    format = "!ii%ds"
     def __init__(self, code, value):
         self.size = len(value)
         self.format = self.format % self.size
         super(DaapString, self).__init__(code, value)
 
 class DaapDate(DaapType):
-    format = "iii"
+    format = "!iii"
     size = 4
 
 class DaapVersion(DaapType, list):
-    format = "iihh"
+    format = "!iihh"
     size = 4
     def __init__(self, code, value):
         """
@@ -93,7 +93,7 @@ class DaapVersion(DaapType, list):
         self.data = struct.pack(self.format, code, self.size, *value)
 
 class DaapList(DaapType, list):
-    format = "ii%dp"
+    format = "!ii%ds"
     def __init__(self, code):
         super(list, self).__init__()
         self.code = code

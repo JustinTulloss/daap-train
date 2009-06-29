@@ -174,7 +174,7 @@ def code_to_integer(code):
     number = 0
     for i in xrange(len(code)):
         char = code[i]
-        number |= ord(char) << i*8
+        number |= ord(char) << (len(code) - i-1)*8
     return number
 
 codes = {
@@ -241,7 +241,7 @@ class DaapServerInfo(DaapResponse):
 
     def __init__(self,
             status = 200,
-            version = (2,0),
+            version = (3,8),
             indexing = False,
             extensions = False,
             update = False,
@@ -253,7 +253,7 @@ class DaapServerInfo(DaapResponse):
             resolve = False,
             browsing = True,
             persistent_ids = False,
-            dmap_protocol = (1, 0)):
+            dmap_protocol = (2, 5)):
 
         super(DaapServerInfo, self).__init__()
         self.data = DaapList(codes['server-info'])
