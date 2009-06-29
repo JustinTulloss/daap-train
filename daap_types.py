@@ -97,7 +97,9 @@ class DaapList(DaapType, list):
         self.code = code
 
     def __len__(self):
-        return 0
+        size = 0
+        for item in self:
+            size += 4 + item.size
 
     def __str__(self):
         buffer = ''

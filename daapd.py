@@ -75,7 +75,7 @@ class Daapd:
 
             self.sdRef = DNSServiceRegister(
                 name = self.name,
-                regtype = '_daap._tcp',
+                regtype = '_daap._tcp.',
                 port = self.port,
                 callBack = self._registered_callback,
                 txtRecord = txt_record)
@@ -194,7 +194,17 @@ codes = {
     'dmap_protocol': code_to_integer('mpro')
 }
 
-class DaapServerInfo:
+class DaapResponse(Response):
+    def __init__(self, *args, **kwargs):
+        super(DaapResponse, self).__init__(*args, **kwargs)
+        #self.headers['Content-Type'] = 'application/x-dmap-tagged'
+        self.headers['DAAP-Server'] = 'Simple'
+        self.headers['Expires'] = -1
+        self.headers['Cache-Control'] = 'no-cache'
+        self.headers['Accept-Ranges'] = 'bytes'
+        self.headers['Content-Language'] = 'en_us'
+
+class DaapServerInfo(DaapResponse):
     """
     Represents a ServerInfo packet
     """
@@ -233,6 +243,7 @@ class DaapServerInfo:
             persistent_ids = False,
             dmap_protocol = (1, 0)):
 
+        super(DaapServerInfo, self).__init__()
         self.data = DaapList(codes['server-info'])
         self.data.append(DaapInt(codes['status'], status))
         self.data.append(DaapVersion(codes['protocol'], version))
@@ -250,9 +261,4 @@ class DaapServerInfo:
         self.data.append(DaapBool(codes['resolve'], resolve))
         self.data.append(DaapBool(codes['browsing'], browsing))
         self.data.append(DaapBool(codes['persistent_ids'], persistent_ids))
-
-    def __str__(self):
-        return str(self.data)
-
-    def __len__(self):
-        return 4
+        self.body = str(self.data)
