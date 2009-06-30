@@ -137,7 +137,7 @@ class Daapd:
         return DaapServerInfo(name=self.name)
 
     @serve('content-codes')
-    def content_codes(self, request):
+    def content_codes(self):
         pass
 
     @serve('login')
@@ -197,6 +197,7 @@ codes = {
     'auto_logout': code_to_integer('msal'),
     'timeout': code_to_integer('mstm'),
     'login': code_to_integer('mslr'),
+    'login_type': code_to_integer('msau'),
     'queries': code_to_integer('msqy'),
     'name': code_to_integer('minm'),
     'resolve': code_to_integer('msrs'),
@@ -209,7 +210,7 @@ codes = {
 class DaapResponse(Response):
     def __init__(self, *args, **kwargs):
         super(DaapResponse, self).__init__(*args, **kwargs)
-        #self.headers['Content-Type'] = 'application/x-dmap-tagged'
+        self.headers['Content-Type'] = 'application/x-dmap-tagged'
         self.headers['DAAP-Server'] = 'DAAP Train'
         self.headers['Expires'] = -1
         self.headers['Cache-Control'] = 'no-cache'
@@ -241,38 +242,42 @@ class DaapServerInfo(DaapResponse):
 
     def __init__(self,
             status = 200,
-            version = (3,8),
-            indexing = False,
-            extensions = False,
-            update = False,
-            auto_logout = False,
-            timeout = 5000,
-            login = False,
+            version = (3, 2),
+            db_count = 1,
+            indexing = True,
+            extensions = True,
+            update = True,
+            auto_logout = True,
+            timeout = 0x708,
+            login = True,
+            login_type = 0,
             queries = True,
             name = "daap-train",
             resolve = False,
             browsing = True,
-            persistent_ids = False,
-            dmap_protocol = (2, 5)):
+            persistent_ids = True,
+            dmap_protocol = (2, 2)):
 
         super(DaapServerInfo, self).__init__()
         self.data = DaapList(codes['server-info'])
         self.data.append(DaapInt(codes['status'], status))
-        self.data.append(DaapString(codes['name'], name))
-        self.data.append(DaapVersion(codes['protocol'], version))
         self.data.append(DaapVersion(codes['dmap_protocol'], dmap_protocol))
-        self.data.append(DaapInt(codes['database_count'], 1))
-        self.data.append(DaapInt(codes['timeout'], timeout))
+        self.data.append(DaapVersion(codes['protocol'], version))
+        self.data.append(DaapString(codes['name'], 'nascent'))
 
         # Options
-        self.data.append(DaapBool(codes['indexing'], indexing))
-        self.data.append(DaapBool(codes['extensions'], extensions))
-        self.data.append(DaapBool(codes['update'], update))
-        self.data.append(DaapBool(codes['auto_logout'], auto_logout))
         self.data.append(DaapBool(codes['login'], login))
-        self.data.append(DaapBool(codes['queries'], queries))
-        self.data.append(DaapBool(codes['resolve'], resolve))
-        self.data.append(DaapBool(codes['browsing'], browsing))
+        self.data.append(DaapByte(codes['login_type'], login_type))
+        self.data.append(DaapInt(codes['timeout'], timeout))
+        self.data.append(DaapBool(codes['auto_logout'], auto_logout))
+        self.data.append(DaapBool(codes['update'], update))
         self.data.append(DaapBool(codes['persistent_ids'], persistent_ids))
+        self.data.append(DaapBool(codes['extensions'], extensions))
+        self.data.append(DaapBool(codes['browsing'], browsing))
+        self.data.append(DaapBool(codes['queries'], queries))
+        self.data.append(DaapBool(codes['indexing'], indexing))
+        self.data.append(DaapBool(codes['resolve'], resolve))
+
+        self.data.append(DaapInt(codes['database_count'], db_count))
 
         self.body = str(self.data)

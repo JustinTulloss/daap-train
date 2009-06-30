@@ -29,4 +29,4 @@ PORT = 3689 # TODO: Make this configurable/dynamic
 
 if __name__ == '__main__':
     server = Daapd(port=PORT)
-    httpserver.serve(server, host="0.0.0.0", port=PORT)
+    httpserver.serve(server, host="0.0.0.0", port=PORT, protocol_version="HTTP/1.1")
