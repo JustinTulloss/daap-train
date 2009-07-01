@@ -1,4 +1,5 @@
 syntax:glob
+tags
 *.pyc
 *.swp
 *.swo
