@@ -23,7 +23,7 @@ from daap_types import *
 import select
 from decorator import decorator
 
-__all__ = ['Daapd', 'DaapServerInfo']
+__all__ = ['Daapd']
 
 try:
     from pybonjour import (
